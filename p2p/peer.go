@@ -279,6 +279,9 @@ loop:
 	}
 
 	close(p.closed)
+
+	fmt.Printf("peer is closing: %v", reason.String())
+
 	p.rw.close(reason)
 	p.wg.Wait()
 	return remoteRequested, err

@@ -261,7 +261,7 @@ func (ch accessListAddAccountChange) dirtied() *common.Address {
 }
 
 func (ch accessListAddSlotChange) revert(s *StateDB) {
-	s.accessList.DeleteSlot(*ch.address, *ch.slot)
+	//s.accessList.DeleteSlot(*ch.address, *ch.slot)
 }
 
 func (ch accessListAddSlotChange) dirtied() *common.Address {

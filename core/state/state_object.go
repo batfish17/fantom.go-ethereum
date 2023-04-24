@@ -252,7 +252,18 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		sVal := s.db.StateProvider.GetState(s.address, key)
 
 		s.originStorage[key] = sVal
-		s.db.SetState(s.address, key, sVal)
+
+		// previous state value was empty, otherwise we wouldn't get to this spot
+		var empty common.Hash
+
+		// New value is different, update and journal the change
+		s.db.journal.append(storageChange{
+			account:  &s.address,
+			key:      key,
+			prevalue: empty,
+		})
+
+		s.setState(key, sVal)
 
 		return sVal
 		/*

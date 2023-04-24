@@ -252,6 +252,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		sVal := s.db.StateProvider.GetState(s.address, key)
 
 		s.originStorage[key] = sVal
+		s.db.SetState(s.address, key, sVal)
 
 		return sVal
 		/*

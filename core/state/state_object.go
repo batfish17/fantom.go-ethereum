@@ -248,7 +248,6 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 			meter = &s.db.StorageReads
 		}
 
-		fmt.Printf("GETTING STATE FROM FALLBACK")
 		// HOOK: GET STATE VALUE FROM REMOTE DB HERE
 		sVal := s.db.StateProvider.GetState(s.address, key)
 

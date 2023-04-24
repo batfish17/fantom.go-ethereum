@@ -249,11 +249,17 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		}
 
 		// HOOK: GET STATE VALUE FROM REMOTE DB HERE
+		sVal := s.db.StateProvider.GetState(s.address, key)
 
-		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
-			s.setError(err)
-			return common.Hash{}
-		}
+		s.originStorage[key] = sVal
+
+		return sVal
+		/*
+			if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
+				s.setError(err)
+				return common.Hash{}
+			}
+		*/
 	}
 	var value common.Hash
 	if len(enc) > 0 {

@@ -553,20 +553,29 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		}
 
 		// RESOLVE ACCOUNT OBJECT FROM REMOTEDB HERE
+		resolvedAccount, code := s.StateProvider.GetAccount(addr)
 
-		enc, err := s.trie.TryGet(addr.Bytes())
-		if err != nil {
-			s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
-			return nil
-		}
-		if len(enc) == 0 {
-			return nil
-		}
-		data = new(Account)
-		if err := rlp.DecodeBytes(enc, data); err != nil {
-			log.Error("Failed to decode state object", "addr", addr, "err", err)
-			return nil
-		}
+		data = resolvedAccount
+
+		s.SetBalance(addr, resolvedAccount.Balance)
+		s.SetNonce(addr, resolvedAccount.Nonce)
+		s.SetCode(addr, code)
+
+		/*
+			enc, err := s.trie.TryGet(addr.Bytes())
+			if err != nil {
+				s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
+				return nil
+			}
+			if len(enc) == 0 {
+				return nil
+			}
+			data = new(Account)
+			if err := rlp.DecodeBytes(enc, data); err != nil {
+				log.Error("Failed to decode state object", "addr", addr, "err", err)
+				return nil
+			}
+		*/
 	}
 	// Insert into the live set
 	obj := newObject(s, addr, *data)

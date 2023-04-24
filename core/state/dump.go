@@ -135,7 +135,7 @@ func (s *StateDB) DumpToCollector(c DumpCollector, conf *DumpConfig) (nextKey []
 		start            = time.Now()
 		logged           = time.Now()
 	)
-	log.Info("Trie dumping started", "root", s.trie.Hash())
+	//log.Info("Trie dumping started", "root", s.trie.Hash())
 	c.OnRoot(s.trie.Hash())
 
 	it := trie.NewIterator(s.trie.NodeIterator(conf.Start))
@@ -194,8 +194,8 @@ func (s *StateDB) DumpToCollector(c DumpCollector, conf *DumpConfig) (nextKey []
 	if missingPreimages > 0 {
 		log.Warn("Dump incomplete due to missing preimages", "missing", missingPreimages)
 	}
-	log.Info("Trie dumping complete", "accounts", accounts,
-		"elapsed", common.PrettyDuration(time.Since(start)))
+	//log.Info("Trie dumping complete", "accounts", accounts,
+	//	"elapsed", common.PrettyDuration(time.Since(start)))
 
 	return nextKey
 }

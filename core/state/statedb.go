@@ -314,6 +314,7 @@ func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 
 // GetState retrieves a value from the given account's storage trie.
 func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
+	fmt.Sprintf("RESOLVING STATE")
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetState(s.db, hash)

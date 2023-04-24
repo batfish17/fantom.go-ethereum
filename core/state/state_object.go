@@ -248,30 +248,32 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 			meter = &s.db.StorageReads
 		}
 
-		// HOOK: GET STATE VALUE FROM REMOTE DB HERE
-		sVal := s.db.StateProvider.GetState(s.address, key)
-
-		s.originStorage[key] = sVal
-
-		// previous state value was empty, otherwise we wouldn't get to this spot
-		var empty common.Hash
-
-		// New value is different, update and journal the change
-		s.db.journal.append(storageChange{
-			account:  &s.address,
-			key:      key,
-			prevalue: empty,
-		})
-
-		s.setState(key, sVal)
-
-		return sVal
 		/*
-			if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
-				s.setError(err)
-				return common.Hash{}
-			}
+			// HOOK: GET STATE VALUE FROM REMOTE DB HERE
+			sVal := s.db.StateProvider.GetState(s.address, key)
+
+			s.originStorage[key] = sVal
+
+			// previous state value was empty, otherwise we wouldn't get to this spot
+			var empty common.Hash
+
+			// New value is different, update and journal the change
+			s.db.journal.append(storageChange{
+				account:  &s.address,
+				key:      key,
+				prevalue: empty,
+			})
+
+			s.setState(key, sVal)
+
+			return sVal
 		*/
+
+		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
+			s.setError(err)
+			return common.Hash{}
+		}
+
 	}
 	var value common.Hash
 	if len(enc) > 0 {

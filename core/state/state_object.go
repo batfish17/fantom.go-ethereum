@@ -25,7 +25,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -252,7 +251,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		// HOOK: GET STATE VALUE FROM REMOTE DB HERE
 		sVal := s.db.StateProvider.GetState(s.address, key)
 
-		log.Info("resolved state from fallback", "key", key, "val", sVal)
+		fmt.Printf("resolved state from fallback", "key", key, "val", sVal)
 
 		s.originStorage[key] = sVal
 

@@ -36,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/go-redis/redis"
-	"github.com/inconshreveable/log15"
 )
 
 type revision struct {
@@ -516,8 +515,6 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 // the object is not found or was deleted in this execution context. If you need
 // to differentiate between non-existent/just-deleted, use getDeletedStateObject.
 func (s *StateDB) getStateObject(addr common.Address) *stateObject {
-	defer func(t time.Time) { log15.Info("operation", "name", "getStateObject", "t", time.Since(t)) }(time.Now())
-
 	if obj := s.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
 	}

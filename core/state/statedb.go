@@ -18,6 +18,7 @@
 package state
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -33,6 +35,8 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/go-redis/redis"
+	"github.com/inconshreveable/log15"
 )
 
 type revision struct {
@@ -125,6 +129,8 @@ type StateDB struct {
 	SnapshotCommits      time.Duration
 
 	StateProvider RPCStateProvider
+
+	storageLoacationTouched map[common.Address]map[common.Hash]bool
 }
 
 // New creates a new state from a given trie.
@@ -138,19 +144,20 @@ func NewWithSnapLayers(root common.Hash, db Database, snaps *snapshot.Tree, laye
 		return nil, err
 	}
 	sdb := &StateDB{
-		db:                  db,
-		trie:                tr,
-		originalRoot:        root,
-		snaps:               snaps,
-		stateObjects:        make(map[common.Address]*stateObject),
-		stateObjectsPending: make(map[common.Address]struct{}),
-		stateObjectsDirty:   make(map[common.Address]struct{}),
-		logs:                make(map[common.Hash][]*types.Log),
-		preimages:           make(map[common.Hash][]byte),
-		journal:             newJournal(),
-		accessList:          newAccessList(),
-		hasher:              crypto.NewKeccakState(),
-		snapMaxLayers:       layers,
+		db:                      db,
+		trie:                    tr,
+		originalRoot:            root,
+		snaps:                   snaps,
+		stateObjects:            make(map[common.Address]*stateObject),
+		stateObjectsPending:     make(map[common.Address]struct{}),
+		stateObjectsDirty:       make(map[common.Address]struct{}),
+		logs:                    make(map[common.Hash][]*types.Log),
+		preimages:               make(map[common.Hash][]byte),
+		journal:                 newJournal(),
+		accessList:              newAccessList(),
+		hasher:                  crypto.NewKeccakState(),
+		snapMaxLayers:           layers,
+		storageLoacationTouched: make(map[common.Address]map[common.Hash]bool),
 	}
 	if sdb.snaps != nil {
 		if sdb.snap = sdb.snaps.Snapshot(root); sdb.snap != nil {
@@ -314,7 +321,8 @@ func (s *StateDB) GetCodeHash(addr common.Address) common.Hash {
 
 // GetState retrieves a value from the given account's storage trie.
 func (s *StateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
-	fmt.Sprintf("RESOLVING STATE")
+	s.addTouchedStorage(addr, hash)
+
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetState(s.db, hash)
@@ -347,6 +355,8 @@ func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, 
 
 // GetCommittedState retrieves a value from the given account's committed storage trie.
 func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) common.Hash {
+	s.addTouchedStorage(addr, hash)
+
 	stateObject := s.getStateObject(addr)
 	if stateObject != nil {
 		return stateObject.GetCommittedState(s.db, hash)
@@ -421,6 +431,8 @@ func (s *StateDB) SetCode(addr common.Address, code []byte) {
 }
 
 func (s *StateDB) SetState(addr common.Address, key, value common.Hash) {
+	s.addTouchedStorage(addr, key)
+
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetState(s.db, key, value)
@@ -504,6 +516,8 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 // the object is not found or was deleted in this execution context. If you need
 // to differentiate between non-existent/just-deleted, use getDeletedStateObject.
 func (s *StateDB) getStateObject(addr common.Address) *stateObject {
+	defer func(t time.Time) { log15.Info("operation", "name", "getStateObject", "t", time.Since(t)) }(time.Now())
+
 	if obj := s.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
 	}
@@ -1043,4 +1057,71 @@ func (s *StateDB) AddressInAccessList(addr common.Address) bool {
 // SlotInAccessList returns true if the given (address, slot)-tuple is in the access list.
 func (s *StateDB) SlotInAccessList(addr common.Address, slot common.Hash) (addressPresent bool, slotPresent bool) {
 	return s.accessList.Contains(addr, slot)
+}
+
+func (s *StateDB) addTouchedStorage(addr common.Address, hash common.Hash) {
+	if s.storageLoacationTouched == nil {
+		s.storageLoacationTouched = make(map[common.Address]map[common.Hash]bool)
+	}
+
+	if s.storageLoacationTouched[addr] == nil {
+		s.storageLoacationTouched[addr] = make(map[common.Hash]bool)
+	}
+
+	s.storageLoacationTouched[addr][hash] = true
+}
+
+func (s *StateDB) PublishAccessTrace(blockNum uint64) {
+
+	output := map[string]interface{}{
+		"block": blockNum,
+	}
+
+	accounts := make([]map[string]interface{}, 0)
+
+	for account, storage := range s.storageLoacationTouched {
+		data := map[string]interface{}{
+			"account": account.Hex(),
+			"balance": s.GetBalance(account),
+		}
+
+		values := make(map[string]string)
+
+		for key := range storage {
+			values[key.Hex()] = hexutil.Encode(s.GetState(account, key).Bytes())
+		}
+
+		data["storage"] = values
+
+		accounts = append(accounts, data)
+	}
+
+	output["accounts"] = accounts
+
+	rdb := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+	defer rdb.Close()
+
+	outputAsBytes, _ := json.Marshal(output)
+	rdb.Publish("fantom.state", outputAsBytes)
+
+}
+
+func (s *StateDB) GetStateChanges() map[common.Address]map[common.Hash]common.Hash {
+	changes := make(map[common.Address]map[common.Hash]common.Hash)
+
+	for addr := range s.journal.dirties {
+		obj, exist := s.stateObjects[addr]
+
+		if !exist {
+			continue
+		}
+
+		changes[addr] = make(map[common.Hash]common.Hash)
+
+		for key, val := range obj.dirtyStorage {
+			changes[addr][key] = val
+		}
+	}
+
+	return changes
 }

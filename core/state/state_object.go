@@ -91,8 +91,6 @@ type stateObject struct {
 	dirtyCode bool // true if the code was updated
 	suicided  bool
 	deleted   bool
-
-	written map[string]bool
 }
 
 // empty returns whether the account is considered empty.
@@ -128,7 +126,6 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 		originStorage:  make(Storage),
 		pendingStorage: make(Storage),
 		dirtyStorage:   make(Storage),
-		written:        make(map[string]bool),
 	}
 }
 
@@ -275,12 +272,11 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 			return sVal
 		*/
 
-		if s.written[key.Hex()] {
-			if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
-				s.setError(err)
-				return common.Hash{}
-			}
+		if enc, err = s.getTrie(db).TryGet(key.Bytes()); err != nil {
+			s.setError(err)
+			return common.Hash{}
 		}
+
 	}
 	var value common.Hash
 	if len(enc) > 0 {
@@ -335,7 +331,6 @@ func (s *stateObject) SetStorage(storage map[common.Hash]common.Hash) {
 
 func (s *stateObject) setState(key, value common.Hash) {
 	s.dirtyStorage[key] = value
-	s.written[key.Hex()] = true
 }
 
 // finalise moves all dirty storage slots into the pending area to be hashed or

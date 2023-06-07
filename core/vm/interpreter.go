@@ -107,6 +107,10 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	}
 
 	for key, f := range cfg.JumpTable {
+		if f == nil {
+			continue
+		}
+
 		fn := f.execute
 
 		f.execute = func(pc *uint64, interpreter *EVMInterpreter, callContext *ScopeContext) ([]byte, error) {

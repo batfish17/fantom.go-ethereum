@@ -259,9 +259,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
 
-			start := time.Now()
 			ret, err = evm.interpreter.Run(contract, input, false)
-			log15.Debug("executed contract", "addr", addr, "t", time.Since(start))
 			gas = contract.Gas
 		}
 	}

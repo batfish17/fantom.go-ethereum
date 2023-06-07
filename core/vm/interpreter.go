@@ -19,10 +19,12 @@ package vm
 import (
 	"hash"
 	"sync/atomic"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/inconshreveable/log15"
 )
 
 // Config are the configuration options for the Interpreter
@@ -183,6 +185,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// the execution of one of the operations or until the done flag is set by the
 	// parent context.
 	steps := 0
+	startedAt := time.Now()
 	for {
 		steps++
 		if steps%1000 == 0 && atomic.LoadInt32(&in.evm.abort) != 0 {
@@ -278,5 +281,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			pc++
 		}
 	}
+
+	log15.Info("operation", "processed contract steps", "steps", steps, "t", time.Since(startedAt))
 	return nil, nil
 }

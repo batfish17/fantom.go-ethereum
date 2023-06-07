@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/holiman/uint256"
+	"github.com/inconshreveable/log15"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -234,7 +235,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
+
+			start := time.Now()
 			ret, err = evm.interpreter.Run(contract, input, false)
+			log15.Debug("executed contract", "addr", addr, "t", time.Since(start))
 			gas = contract.Gas
 		}
 	}

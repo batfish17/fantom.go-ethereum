@@ -106,22 +106,6 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 		cfg.JumpTable = jt
 	}
 
-	for key, f := range cfg.JumpTable {
-		if f == nil {
-			continue
-		}
-
-		fn := f.execute
-
-		f.execute = func(pc *uint64, interpreter *EVMInterpreter, callContext *ScopeContext) ([]byte, error) {
-			defer func(t time.Time) {
-				interpreter.evm.Record(OpCode(key).String(), time.Since(t))
-			}(time.Now())
-
-			return fn(pc, interpreter, callContext)
-		}
-	}
-
 	return &EVMInterpreter{
 		evm: evm,
 		cfg: cfg,
@@ -218,6 +202,17 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		if operation == nil {
 			return nil, &ErrInvalidOpCode{opcode: op}
 		}
+
+		base := operation.execute
+
+		operation.execute = func(pc *uint64, interpreter *EVMInterpreter, callContext *ScopeContext) ([]byte, error) {
+			defer func(t time.Time) {
+				interpreter.evm.Record(op.String(), time.Since(t))
+			}(time.Now())
+
+			return base(pc, interpreter, callContext)
+		}
+
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
 			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}

@@ -19,7 +19,6 @@ package vm
 import (
 	"hash"
 	"sync/atomic"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -203,15 +202,18 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			return nil, &ErrInvalidOpCode{opcode: op}
 		}
 
-		base := operation.execute
+		/*
+			base := operation.execute
 
-		operation.execute = func(pc *uint64, interpreter *EVMInterpreter, callContext *ScopeContext) ([]byte, error) {
-			defer func(t time.Time) {
-				interpreter.evm.Record(op.String(), time.Since(t))
-			}(time.Now())
+			operation.execute = func(pc *uint64, interpreter *EVMInterpreter, callContext *ScopeContext) ([]byte, error) {
+				defer func(t time.Time) {
+					interpreter.evm.Record(op.String(), time.Since(t))
+				}(time.Now())
 
-			return base(pc, interpreter, callContext)
-		}
+				return base(pc, interpreter, callContext)
+			}
+
+		*/
 
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {

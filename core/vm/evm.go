@@ -136,7 +136,7 @@ type EVM struct {
 
 type operationTrace struct {
 	calls    int
-	duration time.Duration
+	duration int64
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
@@ -161,12 +161,12 @@ func (evm *EVM) Record(op string, duration time.Duration) {
 	}
 
 	evm.calls[op].calls++
-	evm.calls[op].duration += duration
+	evm.calls[op].duration += int64(duration)
 }
 
 func (evm *EVM) DumpLogs() {
 	for op, trace := range evm.calls {
-		log15.Debug("operation", "call", op, "count", trace.calls, "duration", trace.duration)
+		log15.Debug("operation", "call", op, "count", trace.calls, "duration", time.Duration(trace.duration))
 	}
 }
 

@@ -130,6 +130,13 @@ type EVM struct {
 	// available gas is calculated in gasCall* according to the 63/64 rule and later
 	// applied in opCall*.
 	callGasTemp uint64
+
+	calls map[string]*operationTrace
+}
+
+type operationTrace struct {
+	calls    int
+	duration time.Duration
 }
 
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
@@ -142,9 +149,25 @@ func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb StateDB, chainConfig
 		Config:      config,
 		chainConfig: chainConfig,
 		chainRules:  chainConfig.Rules(blockCtx.BlockNumber),
+		calls:       make(map[string]*operationTrace),
 	}
 	evm.interpreter = NewEVMInterpreter(evm, config)
 	return evm
+}
+
+func (evm *EVM) Record(op string, duration time.Duration) {
+	if evm.calls[op] == nil {
+		evm.calls[op] = &operationTrace{}
+	}
+
+	evm.calls[op].calls++
+	evm.calls[op].duration += duration
+}
+
+func (evm *EVM) DumpLogs() {
+	for op, trace := range evm.calls {
+		log15.Debug("operation", "call", op, "count", trace.calls, "duration", trace.duration)
+	}
 }
 
 // Reset resets the EVM with a new transaction context.Reset

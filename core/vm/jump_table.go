@@ -1030,4 +1030,5 @@ func newFrontierInstructionSet() JumpTable {
 			writes:     true,
 		},
 	}
+
 }

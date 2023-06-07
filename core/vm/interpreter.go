@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/inconshreveable/log15"
 )
 
 // Config are the configuration options for the Interpreter
@@ -107,6 +106,18 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 		cfg.JumpTable = jt
 	}
 
+	for key, f := range cfg.JumpTable {
+		fn := f.execute
+
+		f.execute = func(pc *uint64, interpreter *EVMInterpreter, callContext *ScopeContext) ([]byte, error) {
+			defer func(t time.Time) {
+				interpreter.evm.Record(OpCode(key).String(), time.Since(t))
+			}(time.Now())
+
+			return fn(pc, interpreter, callContext)
+		}
+	}
+
 	return &EVMInterpreter{
 		evm: evm,
 		cfg: cfg,
@@ -185,7 +196,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// the execution of one of the operations or until the done flag is set by the
 	// parent context.
 	steps := 0
-	startedAt := time.Now()
+
 	for {
 		steps++
 		if steps%1000 == 0 && atomic.LoadInt32(&in.evm.abort) != 0 {
@@ -282,6 +293,5 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}
 	}
 
-	log15.Info("operation", "processed contract steps", "steps", steps, "t", time.Since(startedAt))
 	return nil, nil
 }
